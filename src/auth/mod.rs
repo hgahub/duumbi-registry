@@ -9,8 +9,8 @@ use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
 
-use crate::AppState;
 use crate::error::RegistryError;
+use crate::AppState;
 
 /// Extracts the Bearer token from the Authorization header.
 pub fn extract_bearer_token(req: &Request) -> Result<String, RegistryError> {
@@ -33,6 +33,7 @@ pub fn extract_bearer_token(req: &Request) -> Result<String, RegistryError> {
 }
 
 /// Middleware that requires a valid Bearer token for write operations.
+#[allow(dead_code)] // Available for future route-level middleware usage
 pub async fn require_auth(
     axum::extract::State(state): axum::extract::State<Arc<AppState>>,
     mut req: Request,

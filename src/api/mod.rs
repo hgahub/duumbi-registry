@@ -15,42 +15,30 @@
 
 use std::sync::Arc;
 
-use axum::body::Bytes;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::middleware;
 use axum::response::IntoResponse;
-use axum::routing::{delete, get, put};
+use axum::routing::get;
 use axum::{Json, Router};
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
-use crate::AppState;
-use crate::auth;
+use crate::auth::extract_bearer_token;
 use crate::error::RegistryError;
 use crate::types::{PublishResponse, SearchResponse};
+use crate::AppState;
 
 /// Builds the API router with all routes and middleware.
 pub fn router(state: Arc<AppState>) -> Router {
-    let public = Router::new()
+    // All module routes share one wildcard; the handler dispatches by method+path.
+    // PUT and DELETE require auth — we check inside the handler.
+    Router::new()
         .route(
             "/api/v1/modules/{*module_path}",
-            get(get_module_or_download),
+            get(get_module_or_download).put(publish).delete(yank),
         )
         .route("/api/v1/search", get(search))
-        .route("/health", get(health));
-
-    let authed = Router::new()
-        .route("/api/v1/modules/{*module_path}", put(publish))
-        .route("/api/v1/modules/{*module_version_path}", delete(yank))
-        .layer(middleware::from_fn_with_state(
-            state.clone(),
-            auth::require_auth,
-        ));
-
-    Router::new()
-        .merge(public)
-        .merge(authed)
+        .route("/health", get(health))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
         .with_state(state)
@@ -114,8 +102,16 @@ async fn search(
 async fn publish(
     State(state): State<Arc<AppState>>,
     Path(module_path): Path<String>,
-    body: Bytes,
+    req: axum::extract::Request,
 ) -> Result<Json<PublishResponse>, RegistryError> {
+    // Inline auth check
+    let token = extract_bearer_token(&req)?;
+    state.db.validate_token(&token)?;
+
+    let body = axum::body::to_bytes(req.into_body(), 100 * 1024 * 1024)
+        .await
+        .map_err(|e| RegistryError::InvalidModule(format!("Failed to read body: {e}")))?;
+
     let parts: Vec<&str> = module_path.split('/').collect();
     let module = match parts.as_slice() {
         [scope, name] => format!("{scope}/{name}"),
@@ -162,9 +158,14 @@ async fn publish(
 /// DELETE /api/v1/modules/{scope}/{name}/{version} — yank a version.
 async fn yank(
     State(state): State<Arc<AppState>>,
-    Path(module_version_path): Path<String>,
+    Path(module_path): Path<String>,
+    req: axum::extract::Request,
 ) -> Result<StatusCode, RegistryError> {
-    let parts: Vec<&str> = module_version_path.split('/').collect();
+    // Inline auth check
+    let token = extract_bearer_token(&req)?;
+    state.db.validate_token(&token)?;
+
+    let parts: Vec<&str> = module_path.split('/').collect();
     let (module, version) = match parts.as_slice() {
         [scope, name, version] => (format!("{scope}/{name}"), version.to_string()),
         _ => {
