@@ -1,21 +1,12 @@
-//! duumbi-registry — Registry server for duumbi modules.
-//!
-//! Serves the `registry.duumbi.dev` API. Stores module archives (.tar.gz)
-//! and metadata in SQLite with filesystem blob storage.
-
-mod api;
-mod auth;
-mod db;
-mod error;
-mod storage;
-mod types;
-mod web;
+//! duumbi-registry — Registry server binary entry point.
 
 use std::sync::Arc;
 
 use clap::Parser;
 use tokio::net::TcpListener;
 use tracing_subscriber::EnvFilter;
+
+use duumbi_registry::{build_app, db, storage, AppState};
 
 /// duumbi-registry — Module registry server.
 #[derive(Parser, Debug)]
@@ -32,14 +23,6 @@ struct Args {
     /// Path to the module storage directory.
     #[arg(long, default_value = "storage")]
     storage_dir: String,
-}
-
-/// Shared application state passed to all handlers.
-pub struct AppState {
-    /// Database connection pool.
-    pub db: db::Database,
-    /// Module archive storage.
-    pub storage: storage::Storage,
 }
 
 #[tokio::main]
@@ -63,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
         storage,
     });
 
-    let app = api::router(state.clone()).merge(web::router(state));
+    let app = build_app(state);
 
     let addr = format!("0.0.0.0:{}", args.port);
     tracing::info!("Registry server listening on {addr}");
