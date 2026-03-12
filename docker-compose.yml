@@ -1,0 +1,22 @@
+services:
+  registry:
+    build: .
+    ports:
+      - "${DUUMBI_PORT:-8080}:8080"
+    volumes:
+      - registry-data:/data
+    environment:
+      - DUUMBI_PORT=8080
+      - DUUMBI_DB=/data/registry.db
+      - DUUMBI_STORAGE=/data/modules
+      - RUST_LOG=duumbi_registry=info,tower_http=info
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  registry-data:
