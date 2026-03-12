@@ -18,6 +18,18 @@ pub struct VersionInfo {
     pub published_at: Option<String>,
 }
 
+impl VersionInfo {
+    /// Returns a truncated integrity hash for display (e.g. `sha256:abcdef01234567...`).
+    pub fn short_integrity(&self) -> String {
+        if let Some(hex) = self.integrity.strip_prefix("sha256:") {
+            if hex.len() > 16 {
+                return format!("sha256:{}...", &hex[..16]);
+            }
+        }
+        self.integrity.clone()
+    }
+}
+
 /// Full module metadata with all published versions.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModuleInfo {

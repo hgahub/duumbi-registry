@@ -136,6 +136,38 @@ impl Database {
         Ok(())
     }
 
+    /// Lists the most recently published modules (by latest version timestamp).
+    pub fn list_recent_modules(&self, limit: u32) -> Result<Vec<SearchHit>, RegistryError> {
+        let conn = self.conn.lock().expect("invariant: db mutex not poisoned");
+
+        let mut stmt = conn.prepare(
+            "SELECT m.name, m.description, \
+                    (SELECT v.version FROM versions v \
+                     WHERE v.module_name = m.name AND v.yanked = 0 \
+                     ORDER BY v.published_at DESC LIMIT 1) as latest, \
+                    (SELECT MAX(v.published_at) FROM versions v \
+                     WHERE v.module_name = m.name) as last_pub \
+             FROM modules m \
+             ORDER BY last_pub DESC \
+             LIMIT ?1",
+        )?;
+
+        let results: Vec<SearchHit> = stmt
+            .query_map(rusqlite::params![limit], |row| {
+                Ok(SearchHit {
+                    name: row.get(0)?,
+                    description: row.get(1)?,
+                    latest_version: row
+                        .get::<_, Option<String>>(2)?
+                        .unwrap_or_else(|| "0.0.0".to_string()),
+                })
+            })?
+            .filter_map(Result::ok)
+            .collect();
+
+        Ok(results)
+    }
+
     /// Searches modules by name or description.
     pub fn search(&self, query: &str, limit: u32) -> Result<SearchResponse, RegistryError> {
         let conn = self.conn.lock().expect("invariant: db mutex not poisoned");

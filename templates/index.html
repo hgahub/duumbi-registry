@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}duumbi registry{% endblock %}
+
+{% block content %}
+<div class="hero">
+    <h1>duumbi registry</h1>
+    <p>Discover and share duumbi modules</p>
+</div>
+
+{% if recent_modules.is_empty() %}
+<div class="empty-state">
+    <p>No modules published yet. Be the first!</p>
+</div>
+{% else %}
+<h2 class="section-title">Recently published</h2>
+<div class="module-list">
+    {% for m in recent_modules %}
+    <a class="module-card" href="/{{ m.name }}">
+        <div class="module-card-header">
+            <span class="module-card-name">{{ m.name }}</span>
+            <span class="module-card-version">{{ m.latest_version }}</span>
+        </div>
+        {% if let Some(desc) = m.description.as_deref() %}
+        <div class="module-card-desc">{{ desc }}</div>
+        {% endif %}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

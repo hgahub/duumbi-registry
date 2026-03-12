@@ -9,6 +9,7 @@ mod db;
 mod error;
 mod storage;
 mod types;
+mod web;
 
 use std::sync::Arc;
 
@@ -62,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
         storage,
     });
 
-    let app = api::router(state);
+    let app = api::router(state.clone()).merge(web::router(state));
 
     let addr = format!("0.0.0.0:{}", args.port);
     tracing::info!("Registry server listening on {addr}");

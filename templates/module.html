@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}{{ module.name }} — duumbi registry{% endblock %}
+
+{% block content %}
+<div class="module-header">
+    <h1>{{ module.name }}</h1>
+    {% if let Some(desc) = module.description.as_deref() %}
+    <p class="desc">{{ desc }}</p>
+    {% endif %}
+</div>
+
+<div class="install-box">
+    <label>Install</label>
+    <code>duumbi deps add {{ module.name }}</code>
+</div>
+
+<h2 class="section-title">Versions</h2>
+
+{% if module.versions.is_empty() %}
+<div class="empty-state">
+    <p>No versions published yet.</p>
+</div>
+{% else %}
+<table class="versions-table">
+    <thead>
+        <tr>
+            <th>Version</th>
+            <th>Published</th>
+            <th>Integrity</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for v in module.versions %}
+        <tr>
+            <td><a href="/{{ module.name }}/{{ v.version }}">{{ v.version }}</a></td>
+            <td>{{ v.published_at.as_deref().unwrap_or("—") }}</td>
+            <td style="font-family: var(--font-mono); font-size: 0.8rem;">{{ v.short_integrity() }}</td>
+            <td>{% if v.yanked %}<span class="badge-yanked">yanked</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endif %}
+{% endblock %}

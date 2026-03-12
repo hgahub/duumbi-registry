@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}{{ module_name }}@{{ version.version }} — duumbi registry{% endblock %}
+
+{% block content %}
+<div class="module-header">
+    <h1><a href="/{{ module_name }}">{{ module_name }}</a> @ {{ version.version }}</h1>
+    {% if version.yanked %}<span class="badge-yanked">yanked</span>{% endif %}
+</div>
+
+<div class="install-box">
+    <label>Install this version</label>
+    <code>duumbi deps add {{ module_name }}@{{ version.version }}</code>
+</div>
+
+<h2 class="section-title">Details</h2>
+<div class="detail-grid">
+    <span class="detail-label">Version</span>
+    <span class="detail-value">{{ version.version }}</span>
+
+    <span class="detail-label">Published</span>
+    <span class="detail-value">{{ version.published_at.as_deref().unwrap_or("—") }}</span>
+
+    <span class="detail-label">Integrity</span>
+    <span class="detail-value"><code>{{ version.integrity }}</code></span>
+
+    <span class="detail-label">Status</span>
+    <span class="detail-value">{% if version.yanked %}Yanked{% else %}Active{% endif %}</span>
+</div>
+
+<h2 class="section-title">Download</h2>
+<div class="install-box">
+    <label>Direct download</label>
+    <code>curl -O {{ base_url }}/api/v1/modules/{{ module_name }}/{{ version.version }}/download</code>
+</div>
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Publishing guide — duumbi registry{% endblock %}
+
+{% block content %}
+<h1>Publishing to the registry</h1>
+<p style="color: var(--text-muted); margin-top: 0.5rem; margin-bottom: 2rem;">
+    How to publish your duumbi modules for others to use.
+</p>
+
+<div class="publish-steps">
+    <div class="publish-step">
+        <h3>Configure a registry</h3>
+        <p>Add the registry URL to your workspace configuration.</p>
+        <pre>duumbi registry add myregistry https://registry.example.com</pre>
+    </div>
+
+    <div class="publish-step">
+        <h3>Authenticate</h3>
+        <p>Log in with your API token.</p>
+        <pre>duumbi registry login myregistry --token duu_your_token_here</pre>
+    </div>
+
+    <div class="publish-step">
+        <h3>Package your module</h3>
+        <p>Ensure your module has a <code>manifest.toml</code> with name, version, and description.</p>
+        <pre>duumbi package</pre>
+    </div>
+
+    <div class="publish-step">
+        <h3>Publish</h3>
+        <p>Push your package to the registry.</p>
+        <pre>duumbi publish --registry myregistry</pre>
+    </div>
+</div>
+{% endblock %}
