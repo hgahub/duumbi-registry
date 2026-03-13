@@ -29,7 +29,9 @@ impl Database {
             Connection::open(db_path)?
         };
 
-        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;")?;
+        // Use DELETE journal mode instead of WAL for Azure Files (SMB) compatibility.
+        // WAL requires POSIX file locking which SMB does not support.
+        conn.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA foreign_keys=ON;")?;
 
         Ok(Self {
             conn: Mutex::new(conn),
