@@ -92,15 +92,21 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Update Container App
+      - name: Set GHCR registry on Container App
+        run: |
+          az containerapp registry set \
+            --name ca-duumbi-registry \
+            --resource-group rg-duumbi-registry \
+            --server ${{ env.REGISTRY }} \
+            --username ${{ github.actor }} \
+            --password ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Container App image
         run: |
           az containerapp update \
             --name ca-duumbi-registry \
             --resource-group rg-duumbi-registry \
-            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }} \
-            --registry-server ${{ env.REGISTRY }} \
-            --registry-username ${{ github.actor }} \
-            --registry-password ${{ secrets.GITHUB_TOKEN }}
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
 
   smoke-test:
     name: Smoke Test
