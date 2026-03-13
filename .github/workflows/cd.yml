@@ -99,7 +99,7 @@ jobs:
             --resource-group rg-duumbi-registry \
             --server ${{ env.REGISTRY }} \
             --username ${{ github.actor }} \
-            --password ${{ secrets.GITHUB_TOKEN }}
+            --password ${{ secrets.GHCR_PAT }}
 
       - name: Update Container App image
         run: |
