@@ -26,15 +26,16 @@ impl Database {
             if let Some(parent) = db_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            Connection::open(db_path)?
+            // Use unix-none VFS to disable file locking entirely.
+            // Azure Files (SMB) does not support POSIX file locking, and
+            // maxReplicas=1 ensures single-writer so locking is unnecessary.
+            let flags = rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
+                | rusqlite::OpenFlags::SQLITE_OPEN_CREATE
+                | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX;
+            Connection::open_with_flags_and_vfs(db_path, flags, "unix-none")?
         };
 
-        // Azure Files (SMB) does not support POSIX file locking.
-        // Use DELETE journal mode (not WAL) and EXCLUSIVE locking mode
-        // so SQLite acquires the lock once and holds it for the connection lifetime.
-        conn.execute_batch(
-            "PRAGMA locking_mode=EXCLUSIVE; PRAGMA journal_mode=DELETE; PRAGMA foreign_keys=ON;",
-        )?;
+        conn.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA foreign_keys=ON;")?;
 
         Ok(Self {
             conn: Mutex::new(conn),
