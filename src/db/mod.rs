@@ -29,9 +29,12 @@ impl Database {
             Connection::open(db_path)?
         };
 
-        // Use DELETE journal mode instead of WAL for Azure Files (SMB) compatibility.
-        // WAL requires POSIX file locking which SMB does not support.
-        conn.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA foreign_keys=ON;")?;
+        // Azure Files (SMB) does not support POSIX file locking.
+        // Use DELETE journal mode (not WAL) and EXCLUSIVE locking mode
+        // so SQLite acquires the lock once and holds it for the connection lifetime.
+        conn.execute_batch(
+            "PRAGMA locking_mode=EXCLUSIVE; PRAGMA journal_mode=DELETE; PRAGMA foreign_keys=ON;",
+        )?;
 
         Ok(Self {
             conn: Mutex::new(conn),
