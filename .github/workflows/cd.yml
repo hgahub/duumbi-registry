@@ -60,7 +60,10 @@ jobs:
           az containerapp update \
             --name ca-duumbi-registry \
             --resource-group rg-duumbi-registry \
-            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }} \
+            --registry-server ${{ env.REGISTRY }} \
+            --registry-username ${{ github.actor }} \
+            --registry-password ${{ secrets.GITHUB_TOKEN }}
 
   smoke-test:
     name: Smoke Test
