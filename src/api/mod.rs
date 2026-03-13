@@ -23,10 +23,10 @@ use axum::{Json, Router};
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
+use crate::AppState;
 use crate::auth::extract_bearer_token;
 use crate::error::RegistryError;
 use crate::types::{PublishResponse, SearchResponse};
-use crate::AppState;
 
 /// Builds the API router with all routes and middleware.
 pub fn router(state: Arc<AppState>) -> Router {
@@ -210,7 +210,11 @@ fn extract_manifest_info(tarball: &[u8]) -> Result<(String, Option<String>), Reg
             let manifest: toml::Value = toml::from_str(&content)
                 .map_err(|e| RegistryError::InvalidModule(format!("Invalid manifest TOML: {e}")))?;
 
-            let version = manifest
+            // Support both flat format (version = "1.0") and
+            // [module] section format (module.version = "1.0")
+            let module_section = manifest.get("module").unwrap_or(&manifest);
+
+            let version = module_section
                 .get("version")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| {
@@ -218,7 +222,7 @@ fn extract_manifest_info(tarball: &[u8]) -> Result<(String, Option<String>), Reg
                 })?
                 .to_string();
 
-            let description = manifest
+            let description = module_section
                 .get("description")
                 .and_then(|v| v.as_str())
                 .map(String::from);
