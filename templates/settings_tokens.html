@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}API Tokens — duumbi registry{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+    <h1>API Tokens</h1>
+    <p style="color: var(--text-muted); margin-bottom: 2rem;">
+        Tokens are used to authenticate the duumbi CLI with the registry.
+    </p>
+
+    <div class="token-create">
+        <form method="post" action="/settings/tokens" class="token-create-form">
+            <input class="form-input" type="text" name="token_name" placeholder="Token name (e.g., ci-deploy)" style="flex: 1;">
+            <button type="submit" class="btn btn-primary">Generate token</button>
+        </form>
+    </div>
+
+    {% if tokens.is_empty() %}
+    <p style="color: var(--text-muted); text-align: center; padding: 2rem;">
+        No tokens yet. Generate one to authenticate the CLI.
+    </p>
+    {% else %}
+    <div class="token-list">
+        {% for token in tokens %}
+        <div class="token-item">
+            <div class="token-info">
+                <strong>{{ token.token_name }}</strong>
+                <code class="token-prefix">{{ token.token_prefix }}...</code>
+                <span class="token-date">Created {{ token.created_at }}</span>
+                {% match token.last_used_at %}
+                {% when Some with (date) %}
+                <span class="token-date">Last used {{ date }}</span>
+                {% when None %}
+                <span class="token-date token-unused">Never used</span>
+                {% endmatch %}
+            </div>
+            <form method="post" action="/settings/tokens/revoke" style="margin: 0;">
+                <input type="hidden" name="token_id" value="{{ token.id }}">
+                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Revoke this token?')">Revoke</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

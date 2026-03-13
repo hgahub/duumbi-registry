@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Authorize device — duumbi registry{% endblock %}
+
+{% block content %}
+<div class="auth-card">
+    <h1>Authorize device</h1>
+    <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+        Enter the code shown in your terminal to authorize the duumbi CLI.
+    </p>
+
+    {% if let Some(err) = error %}
+    <div class="alert alert-danger">{{ err }}</div>
+    {% endif %}
+
+    <form method="post" action="/device" class="auth-form">
+        <div class="form-group">
+            <label class="form-label" for="user_code">Device code</label>
+            <input class="form-input form-input-code" type="text" id="user_code" name="user_code"
+                   placeholder="XXXX-XXXX" required autofocus
+                   maxlength="9" autocomplete="off" spellcheck="false"
+                   style="text-transform: uppercase; letter-spacing: 0.15em; font-size: 1.5rem; text-align: center;">
+        </div>
+        <button type="submit" class="btn btn-primary">Authorize</button>
+    </form>
+</div>
+{% endblock %}

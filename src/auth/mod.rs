@@ -1,7 +1,18 @@
 //! Authentication middleware and helpers.
 //!
-//! Extracts Bearer tokens from the `Authorization` header and validates
-//! them against the database.
+//! Submodules:
+//! - `jwt` — JWT session token creation/verification
+//! - `session` — cookie-based session extraction (`MaybeUser`)
+//! - `oauth` — GitHub OAuth2 authorization code flow
+//! - `device_code` — device code generation for CLI auth
+//! - `password` — Argon2id password hashing (local_password mode)
+
+pub mod device_code;
+pub mod jwt;
+pub mod oauth;
+pub mod password;
+pub mod rate_limit;
+pub mod session;
 
 use axum::extract::Request;
 use axum::http::header::AUTHORIZATION;
@@ -9,8 +20,8 @@ use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
 
-use crate::error::RegistryError;
 use crate::AppState;
+use crate::error::RegistryError;
 
 /// Extracts the Bearer token from the Authorization header.
 pub fn extract_bearer_token(req: &Request) -> Result<String, RegistryError> {

@@ -90,28 +90,55 @@ docker compose cp ./backup/. registry:/data
 docker compose up -d
 ```
 
-### User management (API tokens)
+### Authentication
 
-Tokens are stored in the SQLite database. Use the `sqlite3` CLI to manage them:
+The registry supports two authentication modes, controlled by the `AUTH_MODE` environment variable:
+
+| Mode | Use case | How users register |
+|------|----------|-------------------|
+| `local_password` (default) | Self-hosted / private | Web registration form at `/register` |
+| `github_oauth` | Global (`registry.duumbi.dev`) | "Sign in with GitHub" on the web UI |
+
+**Self-hosted setup (local_password):**
 
 ```bash
-# Enter the container
-docker compose exec registry sh
+# Generate a JWT secret (required)
+export JWT_SECRET=$(openssl rand -hex 32)
 
-# Create a token
-sqlite3 /data/registry.db \
-  "INSERT INTO tokens (username, token, created_at, revoked) \
-   VALUES ('alice', 'duu_$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)', \
-   datetime('now'), 0);"
-
-# List tokens
-sqlite3 /data/registry.db "SELECT username, token, created_at FROM tokens WHERE revoked = 0;"
-
-# Revoke a token
-sqlite3 /data/registry.db "UPDATE tokens SET revoked = 1 WHERE username = 'alice';"
+# Start the registry
+docker compose up -d
 ```
 
-> A proper `duumbi-registry admin` CLI for token management is planned.
+Users register at `http://localhost:8080/register`, then manage API tokens at `/settings/tokens`.
+
+**GitHub OAuth setup (github_oauth):**
+
+1. Create a GitHub OAuth App at https://github.com/settings/developers
+2. Set callback URL to `https://your-registry.example.com/auth/github/callback`
+3. Configure environment variables:
+
+```bash
+AUTH_MODE=github_oauth
+GITHUB_CLIENT_ID=your_client_id
+GITHUB_CLIENT_SECRET=your_client_secret
+JWT_SECRET=$(openssl rand -hex 32)
+BASE_URL=https://your-registry.example.com
+```
+
+### User management (API tokens)
+
+Users manage their own tokens via the web UI at `/settings/tokens`. Tokens are SHA-256 hashed in the database — raw tokens are shown once at creation.
+
+CLI authentication:
+
+```bash
+# Device code flow (GitHub OAuth registries)
+duumbi registry login myregistry
+# → Opens browser, enter code, CLI receives token automatically
+
+# Manual token (any registry)
+duumbi registry login myregistry --token duu_your_token_here
+```
 
 ## Client Configuration
 

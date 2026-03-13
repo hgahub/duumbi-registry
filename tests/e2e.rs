@@ -7,7 +7,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use duumbi_registry::{build_app, db::Database, storage::Storage, AppState};
+use duumbi_registry::{AppState, AuthMode, build_app, db, db::Database, storage::Storage};
 use reqwest::Client;
 use tempfile::TempDir;
 use tokio::net::TcpListener;
@@ -21,10 +21,20 @@ async fn start_test_server() -> (String, String, TempDir) {
     let database = Database::open(":memory:").expect("in-memory db");
     database.migrate().expect("migration");
 
-    // Create a test token
-    let token = "test_token_abc123";
+    // Create a test user and token
+    let user_id = database
+        .create_user(&db::CreateUser {
+            username: "testuser",
+            display_name: None,
+            avatar_url: None,
+            email: None,
+            password_hash: None,
+        })
+        .expect("create user");
+
+    let token = "duu_test_token_abc123_for_e2e_test";
     database
-        .create_token("testuser", token)
+        .create_token(user_id, "e2e-test", token)
         .expect("create token");
 
     let storage = Storage::new(tmp.path().join("modules").to_str().unwrap()).expect("storage");
@@ -32,6 +42,12 @@ async fn start_test_server() -> (String, String, TempDir) {
     let state = Arc::new(AppState {
         db: database,
         storage,
+        auth_mode: AuthMode::LocalPassword,
+        jwt_secret: "test-jwt-secret".to_string(),
+        base_url: String::new(),
+        github_client_id: None,
+        github_client_secret: None,
+        rate_limiter: duumbi_registry::auth::rate_limit::RateLimiter::new(),
     });
 
     let app = build_app(state);
@@ -51,8 +67,8 @@ async fn start_test_server() -> (String, String, TempDir) {
 
 /// Creates a minimal .tar.gz archive containing a manifest.toml.
 fn make_test_tarball(name: &str, version: &str, description: &str) -> Vec<u8> {
-    use flate2::write::GzEncoder;
     use flate2::Compression;
+    use flate2::write::GzEncoder;
 
     let manifest = format!(
         r#"name = "{name}"
@@ -135,10 +151,12 @@ async fn publish_fetch_download() {
     assert_eq!(info["description"], "A hello module");
     assert_eq!(info["versions"][0]["version"], "1.0.0");
     assert!(!info["versions"][0]["yanked"].as_bool().unwrap());
-    assert!(info["versions"][0]["integrity"]
-        .as_str()
-        .unwrap()
-        .starts_with("sha256:"));
+    assert!(
+        info["versions"][0]["integrity"]
+            .as_str()
+            .unwrap()
+            .starts_with("sha256:")
+    );
 
     // Download
     let resp = client

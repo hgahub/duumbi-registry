@@ -10,6 +10,13 @@ services:
       - DUUMBI_DB=/data/registry.db
       - DUUMBI_STORAGE=/data/modules
       - RUST_LOG=duumbi_registry=info,tower_http=info
+      # Auth configuration (defaults to local_password for self-hosted)
+      - AUTH_MODE=${AUTH_MODE:-local_password}
+      - JWT_SECRET=${JWT_SECRET:?Set JWT_SECRET to a random 256-bit secret}
+      - BASE_URL=${BASE_URL:-http://localhost:${DUUMBI_PORT:-8080}}
+      # GitHub OAuth (only needed when AUTH_MODE=github_oauth)
+      # - GITHUB_CLIENT_ID=
+      # - GITHUB_CLIENT_SECRET=
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
