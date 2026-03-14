@@ -116,7 +116,15 @@ impl Database {
             }
         };
 
-        conn.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA foreign_keys=ON;")?;
+        // busy_timeout: retry for up to 5 s before returning SQLITE_BUSY.
+        // Without this, the background cleanup task and HTTP request handlers
+        // race on the connection and one immediately fails with "database is
+        // locked" instead of waiting for the other to finish.
+        conn.execute_batch(
+            "PRAGMA journal_mode=DELETE; \
+             PRAGMA foreign_keys=ON; \
+             PRAGMA busy_timeout=5000;",
+        )?;
 
         Ok(Self {
             conn: Mutex::new(conn),
