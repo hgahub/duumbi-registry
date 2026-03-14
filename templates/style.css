@@ -304,7 +304,8 @@ pre {
     cursor: pointer;
     transition: opacity 0.15s;
 }
-.btn-primary:hover { opacity: 0.85; }
+/* Override the generic .btn:hover background so primary buttons stay blue. */
+.btn-primary:hover { background: var(--accent-hover); opacity: 1; }
 
 .btn-github {
     display: flex;
