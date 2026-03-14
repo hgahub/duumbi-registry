@@ -6,7 +6,7 @@ use clap::Parser;
 use tokio::net::TcpListener;
 use tracing_subscriber::EnvFilter;
 
-use duumbi_registry::{AppState, AuthMode, build_app, db, storage};
+use duumbi_registry::{build_app, db, storage, AppState, AuthMode};
 
 /// duumbi-registry — Module registry server.
 #[derive(Parser, Debug)]

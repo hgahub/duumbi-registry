@@ -7,7 +7,7 @@
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use duumbi_registry::{AppState, AuthMode, build_app, db, db::Database, storage::Storage};
+use duumbi_registry::{build_app, db, db::Database, storage::Storage, AppState, AuthMode};
 use reqwest::Client;
 use tempfile::TempDir;
 use tokio::net::TcpListener;
@@ -67,8 +67,8 @@ async fn start_test_server() -> (String, String, TempDir) {
 
 /// Creates a minimal .tar.gz archive containing a manifest.toml.
 fn make_test_tarball(name: &str, version: &str, description: &str) -> Vec<u8> {
-    use flate2::Compression;
     use flate2::write::GzEncoder;
+    use flate2::Compression;
 
     let manifest = format!(
         r#"name = "{name}"
@@ -151,12 +151,10 @@ async fn publish_fetch_download() {
     assert_eq!(info["description"], "A hello module");
     assert_eq!(info["versions"][0]["version"], "1.0.0");
     assert!(!info["versions"][0]["yanked"].as_bool().unwrap());
-    assert!(
-        info["versions"][0]["integrity"]
-            .as_str()
-            .unwrap()
-            .starts_with("sha256:")
-    );
+    assert!(info["versions"][0]["integrity"]
+        .as_str()
+        .unwrap()
+        .starts_with("sha256:"));
 
     // Download
     let resp = client

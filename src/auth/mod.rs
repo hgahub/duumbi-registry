@@ -20,8 +20,8 @@ use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
 
-use crate::AppState;
 use crate::error::RegistryError;
+use crate::AppState;
 
 /// Extracts the Bearer token from the Authorization header.
 pub fn extract_bearer_token(req: &Request) -> Result<String, RegistryError> {

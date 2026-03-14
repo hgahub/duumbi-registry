@@ -25,10 +25,10 @@ use axum::{Json, Router};
 use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 
-use crate::AppState;
 use crate::auth::extract_bearer_token;
 use crate::error::RegistryError;
 use crate::types::{PublishResponse, SearchResponse};
+use crate::AppState;
 
 /// Builds the API router with all routes and middleware.
 pub fn router(state: Arc<AppState>) -> Router {

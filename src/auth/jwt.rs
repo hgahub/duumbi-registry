@@ -2,7 +2,7 @@
 //!
 //! Uses HS256 with the `JWT_SECRET` environment variable.
 
-use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
 /// JWT claims stored in the session cookie.

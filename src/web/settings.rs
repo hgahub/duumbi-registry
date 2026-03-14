@@ -5,15 +5,15 @@
 use std::sync::Arc;
 
 use askama::Template;
-use axum::Form;
 use axum::extract::State;
 use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::Form;
 
-use crate::AppState;
 use crate::auth::device_code::generate_api_token;
 use crate::auth::session::{MaybeUser, SessionUser};
 use crate::db::TokenRecord;
 use crate::error::RegistryError;
+use crate::AppState;
 
 // ---------------------------------------------------------------------------
 // Templates

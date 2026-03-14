@@ -9,16 +9,16 @@ mod settings;
 use std::sync::Arc;
 
 use askama::Template;
-use axum::Router;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect, Response};
 use axum::routing::{get, post};
+use axum::Router;
 
-use crate::AppState;
 use crate::auth::session::{MaybeUser, SessionUser};
 use crate::error::RegistryError;
 use crate::types::{ModuleInfo, SearchHit, VersionInfo};
+use crate::AppState;
 
 /// Renders an Askama template into an HTML response.
 fn render_template(tmpl: &impl Template) -> Result<Response, RegistryError> {

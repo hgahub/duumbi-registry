@@ -6,17 +6,17 @@
 use std::sync::Arc;
 
 use askama::Template;
-use axum::Form;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect, Response};
+use axum::Form;
 
-use crate::AppState;
-use crate::AuthMode;
 use crate::auth::device_code::{generate_api_token, generate_csrf_state};
 use crate::auth::session::{self, MaybeUser, SessionUser};
 use crate::auth::{jwt, oauth};
 use crate::error::RegistryError;
+use crate::AppState;
+use crate::AuthMode;
 
 // ---------------------------------------------------------------------------
 // Templates
