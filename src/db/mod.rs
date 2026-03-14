@@ -166,13 +166,15 @@ impl Database {
         // by an intermediate version of migration 002 that lacked it.
         // SQLite does not support ALTER TABLE ADD COLUMN IF NOT EXISTS, so we
         // check via PRAGMA first and only run ALTER TABLE when needed.
+        // The PRAGMA query is propagated as a real error rather than silenced
+        // with unwrap_or, so genuine schema corruption is surfaced immediately.
         let has_revoked: bool = conn
             .query_row(
                 "SELECT COUNT(*) FROM pragma_table_info('tokens') WHERE name = 'revoked'",
                 [],
                 |row| row.get::<_, i64>(0),
             )
-            .unwrap_or(0)
+            .map_err(RegistryError::Database)?
             > 0;
 
         if !has_revoked {
@@ -638,10 +640,13 @@ impl Database {
         let conn = self.conn.lock().expect("invariant: db mutex not poisoned");
         let now = chrono::Utc::now().to_rfc3339();
 
-        // Remove stale codes so the UNIQUE(user_code) constraint cannot
-        // trigger a spurious HTTP 500 on repeated login attempts.
+        // Remove only expired codes so the UNIQUE(user_code) constraint cannot
+        // trigger a spurious HTTP 500 when a user retries login after expiry.
+        // Active pending codes from concurrent sessions are intentionally left
+        // untouched — deleting all pending rows would invalidate other users'
+        // in-progress device-code flows.
         conn.execute(
-            "DELETE FROM device_codes WHERE expires_at < ?1 OR status = 'pending'",
+            "DELETE FROM device_codes WHERE expires_at < ?1",
             rusqlite::params![now],
         )?;
 
@@ -1233,5 +1238,90 @@ mod tests {
 
         let err = db.get_device_code("dc_expired").expect_err("gone");
         assert!(matches!(err, RegistryError::NotFound(_)));
+    }
+
+    #[test]
+    fn create_device_code_second_request_only_purges_expired() {
+        // A second login attempt should succeed (no UNIQUE constraint violation),
+        // but MUST NOT remove pending codes belonging to other sessions.
+        let db = test_db();
+
+        let future = chrono::Utc::now()
+            .checked_add_signed(chrono::Duration::minutes(15))
+            .expect("invariant: time")
+            .to_rfc3339();
+
+        // First user's pending code.
+        db.create_device_code("dc_user1", "AAAA-1111", &future)
+            .expect("first code");
+
+        // Second call (same user retrying) — should succeed without error.
+        db.create_device_code("dc_user2", "BBBB-2222", &future)
+            .expect("second code must not return UNIQUE error");
+
+        // The first user's pending code MUST still exist so their flow is not broken.
+        let rec = db
+            .get_device_code("dc_user1")
+            .expect("first pending code must survive second create");
+        assert_eq!(rec.status, "pending", "first code must still be pending");
+    }
+
+    #[test]
+    fn migrate_repairs_missing_revoked_column() {
+        // Simulate a DB that was created with an intermediate version of
+        // migration 002 that lacked the `revoked` column.
+        let db = Database::open(":memory:").expect("in-memory db");
+        {
+            let conn = db.conn.lock().expect("lock");
+
+            // Apply schema_version bootstrap manually.
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS schema_version (
+                    version INTEGER PRIMARY KEY,
+                    applied_at TEXT NOT NULL
+                );",
+            )
+            .expect("bootstrap");
+
+            // Create tokens table WITHOUT revoked column (old schema).
+            conn.execute_batch(
+                "CREATE TABLE IF NOT EXISTS tokens (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id      INTEGER NOT NULL,
+                    token_name   TEXT NOT NULL DEFAULT 'default',
+                    token_hash   TEXT NOT NULL UNIQUE,
+                    token_prefix TEXT NOT NULL DEFAULT '',
+                    created_at   TEXT NOT NULL,
+                    last_used_at TEXT
+                );",
+            )
+            .expect("create old tokens");
+
+            // Mark version 2 as already applied so migrate() won't DROP+recreate.
+            conn.execute(
+                "INSERT INTO schema_version (version, applied_at) VALUES (2, '2024-01-01T00:00:00Z')",
+                [],
+            )
+            .expect("record v2");
+        }
+
+        // migrate() should detect the missing column and repair it.
+        db.migrate()
+            .expect("migrate must repair missing revoked column");
+
+        // After repair, INSERT with revoked=0 should succeed.
+        {
+            let conn = db.conn.lock().expect("lock");
+            conn.execute(
+                "INSERT INTO tokens (user_id, token_name, token_hash, token_prefix, created_at, revoked) \
+                 VALUES (1, 'test', 'abc', 'abc', '2024-01-01T00:00:00Z', 0)",
+                [],
+            )
+            .expect("INSERT with revoked column must work after repair");
+
+            // And UPDATE SET revoked = 1 (the revoke flow) must also succeed.
+            conn.execute("UPDATE tokens SET revoked = 1 WHERE id = 1", [])
+                .expect("UPDATE revoked must work after repair");
+        }
     }
 }
