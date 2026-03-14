@@ -162,6 +162,26 @@ impl Database {
             }
         }
 
+        // Schema repair: add `revoked` column to `tokens` if it was created
+        // by an intermediate version of migration 002 that lacked it.
+        // SQLite does not support ALTER TABLE ADD COLUMN IF NOT EXISTS, so we
+        // check via PRAGMA first and only run ALTER TABLE when needed.
+        let has_revoked: bool = conn
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('tokens') WHERE name = 'revoked'",
+                [],
+                |row| row.get::<_, i64>(0),
+            )
+            .unwrap_or(0)
+            > 0;
+
+        if !has_revoked {
+            tracing::warn!(
+                "tokens.revoked column missing — applying schema repair (ALTER TABLE ADD COLUMN)"
+            );
+            conn.execute_batch("ALTER TABLE tokens ADD COLUMN revoked INTEGER NOT NULL DEFAULT 0")?;
+        }
+
         Ok(())
     }
 
@@ -605,6 +625,10 @@ impl Database {
     // -----------------------------------------------------------------------
 
     /// Stores a new device code for CLI authentication.
+    ///
+    /// Expired and pending device codes are purged before inserting the new
+    /// record to avoid `UNIQUE` constraint violations on `user_code` when a
+    /// user retries the device-code login flow.
     pub fn create_device_code(
         &self,
         device_code: &str,
@@ -613,6 +637,13 @@ impl Database {
     ) -> Result<(), RegistryError> {
         let conn = self.conn.lock().expect("invariant: db mutex not poisoned");
         let now = chrono::Utc::now().to_rfc3339();
+
+        // Remove stale codes so the UNIQUE(user_code) constraint cannot
+        // trigger a spurious HTTP 500 on repeated login attempts.
+        conn.execute(
+            "DELETE FROM device_codes WHERE expires_at < ?1 OR status = 'pending'",
+            rusqlite::params![now],
+        )?;
 
         conn.execute(
             "INSERT INTO device_codes (device_code, user_code, status, user_id, token_hash, expires_at, created_at) \
