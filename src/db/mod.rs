@@ -102,13 +102,18 @@ impl Database {
             if let Some(parent) = db_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            // Use unix-none VFS to disable file locking entirely.
-            // Azure Files (SMB) does not support POSIX file locking, and
-            // maxReplicas=1 ensures single-writer so locking is unnecessary.
+            // SQLITE_NO_LOCK=1 selects the unix-none VFS which disables all
+            // POSIX file locking. Required for Azure Files (SMB) mounts which
+            // do not support POSIX locking. On normal filesystems (Docker
+            // volumes, local disk) leave locking enabled so WAL recovery works.
             let flags = rusqlite::OpenFlags::SQLITE_OPEN_READ_WRITE
                 | rusqlite::OpenFlags::SQLITE_OPEN_CREATE
                 | rusqlite::OpenFlags::SQLITE_OPEN_NO_MUTEX;
-            Connection::open_with_flags_and_vfs(db_path, flags, "unix-none")?
+            if std::env::var("SQLITE_NO_LOCK").as_deref() == Ok("1") {
+                Connection::open_with_flags_and_vfs(db_path, flags, "unix-none")?
+            } else {
+                Connection::open_with_flags(db_path, flags)?
+            }
         };
 
         conn.execute_batch("PRAGMA journal_mode=DELETE; PRAGMA foreign_keys=ON;")?;
