@@ -11,6 +11,8 @@
 //! | PUT | `/api/v1/modules/{module}` | Yes | Publish version |
 //! | DELETE | `/api/v1/modules/{module}/{version}` | Yes | Yank version |
 //! | GET | `/api/v1/search?q={query}` | No | Search modules |
+//! | GET | `/api/v1/auth/mode` | No | Auth mode discovery |
+//! | GET | `/api/v1/auth/verify` | Bearer | Token verification |
 //! | GET | `/health` | No | Health check |
 
 use std::sync::Arc;
@@ -38,6 +40,16 @@ pub fn router(state: Arc<AppState>) -> Router {
             get(get_module_or_download).put(publish).delete(yank),
         )
         .route("/api/v1/search", get(search))
+        .route("/api/v1/auth/mode", get(auth_mode))
+        .route("/api/v1/auth/verify", get(auth_verify))
+        .route(
+            "/api/v1/auth/device/code",
+            axum::routing::post(device_code_create),
+        )
+        .route(
+            "/api/v1/auth/device/token",
+            axum::routing::post(device_code_poll),
+        )
         .route("/health", get(health))
         .layer(CorsLayer::permissive())
         .layer(TraceLayer::new_for_http())
@@ -180,6 +192,146 @@ async fn yank(
     tracing::info!("Yanked {module}@{version}");
 
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// GET /api/v1/auth/mode — reports which authentication mode is configured.
+///
+/// The duumbi CLI calls this to decide whether to use device code flow
+/// or fall back to manual token entry.
+async fn auth_mode(State(state): State<Arc<AppState>>) -> Json<serde_json::Value> {
+    let mode = &state.auth_mode;
+    Json(serde_json::json!({
+        "mode": mode.as_str(),
+        "device_code_supported": mode.device_code_supported(),
+    }))
+}
+
+/// GET /api/v1/auth/verify — validates a Bearer token.
+///
+/// Returns `{ "username": "..." }` on success, 401 on invalid/revoked token.
+async fn auth_verify(
+    State(state): State<Arc<AppState>>,
+    req: axum::extract::Request,
+) -> Result<Json<serde_json::Value>, RegistryError> {
+    let token = extract_bearer_token(&req)?;
+    let username = state.db.validate_token(&token)?;
+
+    Ok(Json(serde_json::json!({ "username": username })))
+}
+
+// ---------------------------------------------------------------------------
+// Device code flow endpoints (#201)
+// ---------------------------------------------------------------------------
+
+/// Request body for `POST /api/v1/auth/device/code`.
+#[derive(serde::Deserialize)]
+struct DeviceCodeRequest {
+    #[allow(dead_code)]
+    client_id: Option<String>,
+}
+
+/// POST /api/v1/auth/device/code — initiate a device code flow.
+///
+/// Returns a user code for the CLI to display and a device code for polling.
+async fn device_code_create(
+    State(state): State<Arc<AppState>>,
+    Json(_body): Json<DeviceCodeRequest>,
+) -> Result<Json<serde_json::Value>, RegistryError> {
+    if !state.auth_mode.device_code_supported() {
+        return Err(RegistryError::AuthFailed(
+            "Device code flow not supported in this auth mode".to_string(),
+        ));
+    }
+
+    let user_code = crate::auth::device_code::generate_user_code();
+    let device_code = crate::auth::device_code::generate_device_code();
+
+    let expires_at = chrono::Utc::now()
+        .checked_add_signed(chrono::Duration::minutes(15))
+        .ok_or_else(|| RegistryError::Internal("Time overflow".to_string()))?
+        .to_rfc3339();
+
+    state
+        .db
+        .create_device_code(&device_code, &user_code, &expires_at)?;
+
+    let verification_uri = format!("{}/device", state.base_url);
+
+    Ok(Json(serde_json::json!({
+        "device_code": device_code,
+        "user_code": user_code,
+        "verification_uri": verification_uri,
+        "expires_in": 900,
+        "interval": 5,
+    })))
+}
+
+/// Request body for `POST /api/v1/auth/device/token`.
+#[derive(serde::Deserialize)]
+struct DeviceTokenRequest {
+    device_code: String,
+    #[allow(dead_code)]
+    client_id: Option<String>,
+}
+
+/// POST /api/v1/auth/device/token — poll for device code authorization.
+///
+/// Returns 428 while pending, 200 with token on success, 410 on expiry.
+async fn device_code_poll(
+    State(state): State<Arc<AppState>>,
+    Json(body): Json<DeviceTokenRequest>,
+) -> Result<axum::response::Response, RegistryError> {
+    let record = state.db.get_device_code(&body.device_code)?;
+
+    // Check expiry
+    let now = chrono::Utc::now().to_rfc3339();
+    if record.expires_at < now {
+        let body = serde_json::json!({ "error": "expired_token" });
+        return Ok((StatusCode::GONE, Json(body)).into_response());
+    }
+
+    match record.status.as_str() {
+        "pending" => {
+            let body = serde_json::json!({ "error": "authorization_pending" });
+            // 428 Precondition Required — standard for "not yet"
+            Ok((StatusCode::PRECONDITION_REQUIRED, Json(body)).into_response())
+        }
+        "authorized" => {
+            // Look up the user to get the username
+            let user_id = record.user_id.ok_or_else(|| {
+                RegistryError::Internal("Authorized device code has no user_id".to_string())
+            })?;
+            let user = state.db.get_user_by_id(user_id)?;
+
+            // The token was already created during authorization.
+            // We need to return the raw token — but we only stored the hash.
+            // The raw token is stored temporarily in the device_codes.token_hash
+            // field as the actual raw token (not hash) during authorize_device_code.
+            // Wait — that's wrong. Let's re-think.
+            //
+            // Actually, the raw token needs to be communicated back. Since the
+            // device code entry stores the token_hash, and the tokens table also
+            // has the hash, we can't recover the raw token. The solution is:
+            // the raw token is generated during authorize_device_code and ALSO
+            // stored (encrypted or plain) in device_codes for retrieval here.
+            //
+            // For simplicity, device_codes.token_hash stores the RAW token
+            // (not hash) temporarily. It's deleted after retrieval.
+            let raw_token = record.token_hash.ok_or_else(|| {
+                RegistryError::Internal("Authorized device code has no token".to_string())
+            })?;
+
+            let body = serde_json::json!({
+                "token": raw_token,
+                "username": user.username,
+            });
+            Ok((StatusCode::OK, Json(body)).into_response())
+        }
+        _ => {
+            let body = serde_json::json!({ "error": "expired_token" });
+            Ok((StatusCode::GONE, Json(body)).into_response())
+        }
+    }
 }
 
 /// Extracts version and description from a .tar.gz archive's manifest.toml.

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Token created — duumbi registry{% endblock %}
+
+{% block content %}
+<div class="settings-page">
+    <h1>Token created</h1>
+
+    <div class="alert alert-success">
+        <strong>{{ token_name }}</strong> — Copy this token now. It will not be shown again.
+    </div>
+
+    <div class="token-display">
+        <code id="token-value">{{ raw_token }}</code>
+        <button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('token-value').textContent).then(() => this.textContent = 'Copied!')">Copy</button>
+    </div>
+
+    <div style="margin-top: 1.5rem;">
+        <p style="color: var(--text-muted);">Use this token with the duumbi CLI:</p>
+        <pre>duumbi registry login &lt;registry&gt; --token {{ raw_token }}</pre>
+    </div>
+
+    <p style="margin-top: 2rem;">
+        <a href="/settings/tokens">&larr; Back to tokens</a>
+    </p>
+</div>
+{% endblock %}

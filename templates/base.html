@@ -17,6 +17,28 @@
         </form>
         <div class="nav-links">
             <a href="/publish">Publish</a>
+            {% match user %}
+            {% when Some with (u) %}
+            <div class="nav-user">
+                <button class="nav-avatar" aria-label="User menu" onclick="this.parentElement.classList.toggle('open')">
+                    {% match u.avatar_url %}
+                    {% when Some with (url) %}
+                    <img src="{{ url }}" alt="{{ u.username }}" width="28" height="28">
+                    {% when None %}
+                    <span class="avatar-initials">{{ u.username.chars().next().unwrap_or('U') }}</span>
+                    {% endmatch %}
+                </button>
+                <div class="nav-dropdown">
+                    <span class="nav-dropdown-username">@{{ u.username }}</span>
+                    <a href="/settings/tokens">API Tokens</a>
+                    <form method="post" action="/logout">
+                        <button type="submit" class="nav-dropdown-btn">Sign out</button>
+                    </form>
+                </div>
+            </div>
+            {% when None %}
+            <a href="/login" class="btn btn-login">Sign in</a>
+            {% endmatch %}
         </div>
     </nav>
     <main class="main">

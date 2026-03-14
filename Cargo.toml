@@ -25,6 +25,10 @@ sha2 = "0.10"
 
 # Auth
 jsonwebtoken = "9"
+argon2 = { version = "0.5", features = ["std"] }
+rand = "0.9"
+rand_core_06 = { package = "rand_core", version = "0.6", features = ["getrandom"] }
+cookie = "0.18"
 
 # Logging
 tracing = "0.1"
@@ -45,6 +49,8 @@ hex = "0.4"
 flate2 = "1"
 tar = "0.4"
 
+# HTTP client (for GitHub OAuth API calls)
+reqwest = { version = "0.13", features = ["json", "form"] }
+
 [dev-dependencies]
 tempfile = "3"
-reqwest = { version = "0.13", features = ["json"] }
