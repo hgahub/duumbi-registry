@@ -3,6 +3,7 @@
 {% block title %}{{ module.name }} — duumbi registry{% endblock %}
 
 {% block content %}
+<div class="page-container">
 <div class="module-header">
     <h1>{{ module.name }}</h1>
     {% if let Some(desc) = module.description.as_deref() %}
@@ -36,11 +37,12 @@
         <tr>
             <td><a href="/{{ module.name }}/{{ v.version }}">{{ v.version }}</a></td>
             <td>{{ v.published_at.as_deref().unwrap_or("—") }}</td>
-            <td style="font-family: var(--font-mono); font-size: 0.8rem;">{{ v.short_integrity() }}</td>
+            <td style="font-family: var(--mono); font-size: 12px;">{{ v.short_integrity() }}</td>
             <td>{% if v.yanked %}<span class="badge-yanked">yanked</span>{% endif %}</td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
 {% endif %}
+</div>
 {% endblock %}

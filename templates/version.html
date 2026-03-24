@@ -3,6 +3,7 @@
 {% block title %}{{ module_name }}@{{ version.version }} — duumbi registry{% endblock %}
 
 {% block content %}
+<div class="page-container">
 <div class="module-header">
     <h1><a href="/{{ module_name }}">{{ module_name }}</a> @ {{ version.version }}</h1>
     {% if version.yanked %}<span class="badge-yanked">yanked</span>{% endif %}
@@ -32,5 +33,6 @@
 <div class="install-box">
     <label>Direct download</label>
     <code>curl -O {{ base_url }}/api/v1/modules/{{ module_name }}/{{ version.version }}/download</code>
+</div>
 </div>
 {% endblock %}

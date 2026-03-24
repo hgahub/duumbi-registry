@@ -71,6 +71,7 @@ struct IndexTemplate {
     search_query: String,
     user: Option<SessionUser>,
     recent_modules: Vec<SearchHit>,
+    module_count: u64,
 }
 
 #[derive(Template)]
@@ -117,10 +118,12 @@ async fn index(
     MaybeUser(user): MaybeUser,
 ) -> Result<Response, RegistryError> {
     let recent = state.db.list_recent_modules(20)?;
+    let module_count = state.db.count_modules()?;
     render_template(&IndexTemplate {
         search_query: String::new(),
         user,
         recent_modules: recent,
+        module_count,
     })
 }
 

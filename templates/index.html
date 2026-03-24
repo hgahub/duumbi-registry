@@ -3,29 +3,70 @@
 {% block title %}duumbi registry{% endblock %}
 
 {% block content %}
-<div class="hero">
-    <h1>duumbi registry</h1>
-    <p>Discover and share duumbi modules</p>
-</div>
-
 {% if recent_modules.is_empty() %}
-<div class="empty-state">
-    <p>No modules published yet. Be the first!</p>
+<!-- EMPTY STATE -->
+<div class="empty">
+    <div class="e-graph">
+      <div class="eg-c eg-c1"></div><div class="eg-c eg-c2"></div>
+      <div class="eg-n eg-n1"></div><div class="eg-n eg-n2"></div><div class="eg-n eg-n3"></div><div class="eg-n eg-n4"></div>
+      <div class="eg-e eg-e1"></div><div class="eg-e eg-e2"></div><div class="eg-e eg-e3"></div>
+      <div class="eg-p"></div>
+    </div>
+    <h2>duumbi registry</h2>
+    <p>Discover and share semantic graph modules. No modules published yet &mdash; be the first to contribute.</p>
+    <div class="e-actions">
+      <a href="/publish" class="btn-terra">Publish a module &rarr;</a>
+      <a href="https://duumbi.dev" class="btn-out">Read the docs</a>
+    </div>
+    <div class="e-snip"><span class="pr">$</span><span class="cm">duumbi publish</span><span class="ag">./my-module</span></div>
 </div>
 {% else %}
-<h2 class="section-title">Recently published</h2>
-<div class="module-list">
-    {% for m in recent_modules %}
-    <a class="module-card" href="/{{ m.name }}">
-        <div class="module-card-header">
-            <span class="module-card-name">{{ m.name }}</span>
-            <span class="module-card-version">{{ m.latest_version }}</span>
-        </div>
-        {% if let Some(desc) = m.description.as_deref() %}
-        <div class="module-card-desc">{{ desc }}</div>
-        {% endif %}
-    </a>
-    {% endfor %}
+<!-- POPULATED STATE -->
+<div class="pop">
+    <section class="pop-hero">
+      <div class="ey">Module Registry</div>
+      <h1>Discover <em>graph modules,</em><br>build faster.</h1>
+      <p>Reusable semantic graph packages &mdash; compiled to native binaries via Cranelift.</p>
+    </section>
+
+    <form class="p-search" action="/search" method="get">
+      <div class="sb">
+        <span class="ico"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg></span>
+        <input type="text" name="q" placeholder="Search modules...">
+        <span class="kbd">/</span>
+      </div>
+    </form>
+
+    <div class="p-stats">
+      <div class="ps"><span class="ps-v">{{ module_count }}</span><span class="ps-l">modules</span></div>
+    </div>
+
+    <div class="mg">
+      {% for m in recent_modules %}
+      <a class="mc" href="/{{ m.name }}">
+          <div class="mc-h">
+            <span class="mc-n">{{ m.name }}</span>
+            <span class="mc-v">v{{ m.latest_version }}</span>
+          </div>
+          {% if let Some(desc) = m.description.as_deref() %}
+          <p class="mc-d">{{ desc }}</p>
+          {% endif %}
+      </a>
+      {% endfor %}
+    </div>
+
+    <section class="cta">
+      <div>
+        <h3>Install any module in seconds</h3>
+        <p>Add graph packages to your duumbi project from the CLI.</p>
+      </div>
+      <div class="ic">
+        <span class="pr">$</span>
+        <span class="cm">duumbi deps add</span>
+        <span class="ag">@scope/module</span>
+        <button type="button" class="cp" onclick="navigator.clipboard.writeText('duumbi deps add @scope/module')">Copy</button>
+      </div>
+    </section>
 </div>
 {% endif %}
 {% endblock %}

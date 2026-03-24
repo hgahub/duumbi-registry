@@ -304,6 +304,13 @@ impl Database {
         Ok(())
     }
 
+    /// Returns the total number of modules in the registry.
+    pub fn count_modules(&self) -> Result<u64, RegistryError> {
+        let conn = self.conn.lock().expect("invariant: db mutex not poisoned");
+        let count: u64 = conn.query_row("SELECT COUNT(*) FROM modules", [], |row| row.get(0))?;
+        Ok(count)
+    }
+
     /// Lists the most recently published modules (by latest version timestamp).
     pub fn list_recent_modules(&self, limit: u32) -> Result<Vec<SearchHit>, RegistryError> {
         let conn = self.conn.lock().expect("invariant: db mutex not poisoned");

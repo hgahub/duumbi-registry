@@ -3,25 +3,29 @@
 {% block title %}Search: {{ search_query }} — duumbi registry{% endblock %}
 
 {% block content %}
-<h2 class="section-title">{{ total }} result{% if total != 1 %}s{% endif %} for "{{ search_query }}"</h2>
+<div class="page-container">
+<div class="search-header">
+  <h2>{{ total }} result{% if total != 1 %}s{% endif %} for "{{ search_query }}"</h2>
+</div>
 
 {% if results.is_empty() %}
 <div class="empty-state">
     <p>No modules found matching "{{ search_query }}"</p>
 </div>
 {% else %}
-<div class="module-list">
+<div class="mg">
     {% for m in results %}
-    <a class="module-card" href="/{{ m.name }}">
-        <div class="module-card-header">
-            <span class="module-card-name">{{ m.name }}</span>
-            <span class="module-card-version">{{ m.latest_version }}</span>
+    <a class="mc" href="/{{ m.name }}">
+        <div class="mc-h">
+          <span class="mc-n">{{ m.name }}</span>
+          <span class="mc-v">v{{ m.latest_version }}</span>
         </div>
         {% if let Some(desc) = m.description.as_deref() %}
-        <div class="module-card-desc">{{ desc }}</div>
+        <p class="mc-d">{{ desc }}</p>
         {% endif %}
     </a>
     {% endfor %}
 </div>
 {% endif %}
+</div>
 {% endblock %}

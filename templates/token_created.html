@@ -3,6 +3,7 @@
 {% block title %}Token created — duumbi registry{% endblock %}
 
 {% block content %}
+<div class="page-narrow">
 <div class="settings-page">
     <h1>Token created</h1>
 
@@ -15,13 +16,14 @@
         <button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('token-value').textContent).then(() => this.textContent = 'Copied!')">Copy</button>
     </div>
 
-    <div style="margin-top: 1.5rem;">
-        <p style="color: var(--text-muted);">Use this token with the duumbi CLI:</p>
+    <div style="margin-top: 20px;">
+        <p style="color: var(--text-2); font-size: 13px;">Use this token with the duumbi CLI:</p>
         <pre>duumbi registry login &lt;registry&gt; --token {{ raw_token }}</pre>
     </div>
 
-    <p style="margin-top: 2rem;">
+    <p style="margin-top: 24px;">
         <a href="/settings/tokens">&larr; Back to tokens</a>
     </p>
+</div>
 </div>
 {% endblock %}
