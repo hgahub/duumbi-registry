@@ -307,8 +307,8 @@ impl Database {
     /// Returns the total number of modules in the registry.
     pub fn count_modules(&self) -> Result<u64, RegistryError> {
         let conn = self.conn.lock().expect("invariant: db mutex not poisoned");
-        let count: u64 = conn.query_row("SELECT COUNT(*) FROM modules", [], |row| row.get(0))?;
-        Ok(count)
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM modules", [], |row| row.get(0))?;
+        Ok(u64::try_from(count).map_err(|_| rusqlite::Error::IntegralValueOutOfRange(0, count))?)
     }
 
     /// Lists the most recently published modules (by latest version timestamp).
@@ -871,6 +871,21 @@ mod tests {
     }
 
     // -- Module tests (existing) --
+
+    #[test]
+    fn count_modules_counts_modules_once_across_versions() {
+        let db = test_db();
+        assert_eq!(db.count_modules().expect("empty count"), 0);
+        for (module, version) in [
+            ("@test/one", "1.0.0"),
+            ("@test/one", "1.1.0"),
+            ("@test/two", "1.0.0"),
+        ] {
+            db.publish_version(module, None, version, "sha256:abc")
+                .expect("publish");
+        }
+        assert_eq!(db.count_modules().expect("module count"), 2);
+    }
 
     #[test]
     fn publish_and_get_module() {
