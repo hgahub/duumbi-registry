@@ -2,6 +2,7 @@
 name = "duumbi-registry"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.89"
 license = "MPL-2.0"
 description = "Registry server for duumbi modules"
 repository = "https://github.com/hgahub/duumbi-registry"
@@ -13,7 +14,7 @@ tokio = { version = "1", features = ["full"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 
 # Database
-rusqlite = { version = "0.33", features = ["bundled"] }
+rusqlite = { version = "0.41", features = ["bundled"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }
