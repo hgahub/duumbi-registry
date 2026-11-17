@@ -2,6 +2,7 @@
 name = "duumbi-registry"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.89"
 license = "MPL-2.0"
 description = "Registry server for duumbi modules"
 repository = "https://github.com/hgahub/duumbi-registry"
